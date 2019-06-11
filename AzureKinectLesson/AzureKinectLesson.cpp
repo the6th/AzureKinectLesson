@@ -37,7 +37,7 @@ static uint64_t first_capture_timestamp(k4a_capture_t capture)
 			//	min_timestamp = timestamp;
 			//}
 
-			
+
 			k4a_image_release(images[i]);
 			images[i] = NULL;
 		}
@@ -46,32 +46,9 @@ static uint64_t first_capture_timestamp(k4a_capture_t capture)
 	return min_timestamp;
 }
 
-static void print_capture_info(recording_t *file)
-{
-	k4a_image_t images[3];
-	images[0] = k4a_capture_get_color_image(file->capture);
-	images[1] = k4a_capture_get_depth_image(file->capture);
-	images[2] = k4a_capture_get_ir_image(file->capture);
 
-	printf("%-32s", file->filename);
-	for (int i = 0; i < 3; i++)
-	{
-		if (images[i] != NULL)
-		{
-			//uint64_t timestamp = k4a_image_get_device_timestamp_usec(images[i]) +
-			//	(uint64_t)file->record_config.start_timestamp_offset_usec;
-			//printf("  %7ju usec", timestamp);
-			k4a_image_release(images[i]);
-			images[i] = NULL;
-		}
-		else
-		{
-			printf("  %12s", "");
-		}
-	}
-	printf("\n");
-}
 
+#pragma region  MAIN2
 
 static void create_xy_table(const k4a_calibration_t *calibration, k4a_image_t xy_table)
 {
@@ -155,8 +132,14 @@ static void write_point_cloud(const char *file_name, const k4a_image_t point_clo
 	ofs << "property float x" << std::endl;
 	ofs << "property float y" << std::endl;
 	ofs << "property float z" << std::endl;
+	ofs << "property uchar red" << std::endl;
+	ofs << "property uchar green" << std::endl;
+	ofs << "property uchar blue" << std::endl;
+	ofs << "property uchar alpha" << std::endl;
 	ofs << "end_header" << std::endl;
 	ofs.close();
+
+
 
 	std::stringstream ss;
 	for (int i = 0; i < width * height; i++)
@@ -167,143 +150,12 @@ static void write_point_cloud(const char *file_name, const k4a_image_t point_clo
 		}
 
 		ss << (float)point_cloud_data[i].xyz.x << " " << (float)point_cloud_data[i].xyz.y << " "
-			<< (float)point_cloud_data[i].xyz.z << std::endl;
+			<< (float)point_cloud_data[i].xyz.z << " 253 253 253 255"<<std::endl;
 	}
 
 	std::ofstream ofs_text(file_name, std::ios::out | std::ios::app);
 	ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
-
-
-int main1(int argc, char **argv)
-{
-
-	std::cout << "Hello World!\n";
-
-
-	if (argc != 2)
-	{
-		printf("Usage: playback_external_sync.exe <file.mkv>\n");
-		std::cout << "Hello World 2\n";
-		return 1;
-	}
-
-
-
-	//bool master_found = false;
-	k4a_result_t result = K4A_RESULT_SUCCEEDED;
-
-	// Allocate memory to store the state of N recordings.
-	recording_t *files = (recording_t *)malloc(sizeof(recording_t));
-	std::cout << "Hello World 3\n";
-
-	if (files == NULL)
-	{
-		printf("Failed to allocate memory for playback (%zu bytes)\n", sizeof(recording_t));
-		return 1;
-	}
-	else {
-		printf("generate to allocate memory for playback (%zu bytes)\n", sizeof(recording_t));
-	}
-
-	memset(files, 0, sizeof(recording_t));
-
-	int i = 0;
-
-	files[i].filename = argv[i + 1];
-	result = k4a_playback_open(files[i].filename, &files[i].handle);
-	if (result != K4A_RESULT_SUCCEEDED)
-	{
-		printf("Failed to open file: %s\n", files[i].filename);
-	}
-
-	result = k4a_playback_get_record_configuration(files[i].handle, &files[i].record_config);
-	if (result != K4A_RESULT_SUCCEEDED)
-	{
-		printf("Failed to get record configuration for file: %s\n", files[i].filename);
-	}
-
-	//if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER)
-
-	
-	if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_STANDALONE)
-	{
-		printf("Opened standalone recording file: %s\n", files[i].filename);
-		
-	}
-	else
-	{
-		printf("ERROR: Recording file was not recorded in Standalone mode: %s\n", files[i].filename);
-		result = K4A_RESULT_FAILED;
-	}
-
-	// Read the first capture of each recording into memory.
-	k4a_stream_result_t stream_result = k4a_playback_get_next_capture(files[i].handle, &files[i].capture);
-	if (stream_result == K4A_STREAM_RESULT_EOF)
-	{
-		printf("ERROR: Recording file is empty: %s\n", files[i].filename);
-		result = K4A_RESULT_FAILED;
-	}
-	else if (stream_result == K4A_STREAM_RESULT_FAILED)
-	{
-		printf("ERROR: Failed to read first capture from file: %s\n", files[i].filename);
-		result = K4A_RESULT_FAILED;
-	}
-
-
-
-	if (result == K4A_RESULT_SUCCEEDED)
-	{
-		printf("%-32s  %12s  %12s  %12s\n", "Source file", "COLOR", "DEPTH", "IR");
-		printf("==========================================================================\n");
-
-		// Print the first 25 captures in order of timestamp across all the recordings.
-		for (int frame = 0; frame < 25; frame++)
-		{
-			uint64_t min_timestamp = (uint64_t)-1;
-			recording_t *min_file = NULL;
-
-			if (files[i].capture != NULL)
-			{
-				// All recording files start at timestamp 0, however the first timestamp off the camera is usually
-				// non-zero. We need to add the recording "start offset" back to the recording timestamp to recover
-				// the original timestamp from the device, and synchronize the files.
-				uint64_t timestamp = first_capture_timestamp(files[i].capture) +
-					files[i].record_config.start_timestamp_offset_usec;
-				if (timestamp < min_timestamp)
-				{
-					min_timestamp = timestamp;
-					min_file = &files[i];
-				}
-			}
-
-
-			print_capture_info(min_file);
-
-			k4a_capture_release(min_file->capture);
-			min_file->capture = NULL;
-
-			// Advance the recording with the lowest current timestamp forward.
-			k4a_stream_result_t stream_result = k4a_playback_get_next_capture(min_file->handle, &min_file->capture);
-			if (stream_result == K4A_STREAM_RESULT_FAILED)
-			{
-				printf("ERROR: Failed to read next capture from file: %s\n", min_file->filename);
-				result = K4A_RESULT_FAILED;
-				break;
-			}
-		}
-	}
-
-	if (files[i].handle != NULL)
-	{
-		k4a_playback_close(files[i].handle);
-		files[i].handle = NULL;
-	}
-
-	free(files);
-	return result == K4A_RESULT_SUCCEEDED ? 0 : 1;
-}
-
 
 
 int main2(int argc, char **argv)
@@ -413,6 +265,216 @@ Exit:
 
 	return returnCode;
 }
+
+
+#pragma endregion
+
+
+static void print_capture_info(recording_t *file, k4a_calibration_t &calibration,int frame)
+{
+	k4a_image_t images[3];
+	images[0] = k4a_capture_get_color_image(file->capture);
+	images[1] = k4a_capture_get_depth_image(file->capture);
+	images[2] = k4a_capture_get_ir_image(file->capture);
+
+	k4a_float2_t *table_data = (k4a_float2_t *)(void *)k4a_image_get_buffer(images[1]);
+
+	int width = k4a_image_get_width_pixels(images[1]);
+	int height = k4a_image_get_height_pixels(images[1]);
+
+	k4a_image_t xy_table = NULL;
+	k4a_image_t point_cloud = NULL;
+	int point_count = 0;
+
+
+	k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+		calibration.depth_camera_calibration.resolution_width,
+		calibration.depth_camera_calibration.resolution_height,
+		calibration.depth_camera_calibration.resolution_width * (int)sizeof(k4a_float2_t),
+		&xy_table);
+
+	create_xy_table(&calibration, xy_table);
+
+	k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+		calibration.depth_camera_calibration.resolution_width,
+		calibration.depth_camera_calibration.resolution_height,
+		calibration.depth_camera_calibration.resolution_width * (int)sizeof(k4a_float3_t),
+		&point_cloud);
+
+
+	generate_point_cloud(images[1], xy_table, point_cloud, &point_count);
+
+
+
+	std::stringstream ss;
+	ss << file->filename << frame << ".ply" ;
+	write_point_cloud(ss.str().c_str(), point_cloud, point_count);
+
+
+
+	printf("%-32s", file->filename);
+	for (int i = 0; i < 3; i++)
+	{
+		if (images[i] != NULL)
+		{
+			//uint64_t timestamp = k4a_image_get_device_timestamp_usec(images[i]) +
+			//	(uint64_t)file->record_config.start_timestamp_offset_usec;
+			printf("  %d %d", width, height);
+			k4a_image_release(images[i]);
+			images[i] = NULL;
+		}
+		else
+		{
+			printf("  %12s", "");
+		}
+	}
+	printf("\n");
+}
+
+
+int main1(int argc, char **argv)
+{
+	std::cout << "Hello World!\n";
+
+	//if (argc != 2)
+	//{
+	//	printf("Usage: playback_external_sync.exe <file.mkv>\n");
+	//	std::cout << "Hello World 2\n";
+	//	return 1;
+	//}
+
+	//bool master_found = false;
+	k4a_result_t result = K4A_RESULT_SUCCEEDED;
+
+	// Allocate memory to store the state of N recordings.
+	recording_t *files = (recording_t *)malloc(sizeof(recording_t));
+	std::cout << "Hello World 3\n";
+
+	if (files == NULL)
+	{
+		printf("Failed to allocate memory for playback (%zu bytes)\n", sizeof(recording_t));
+		return 1;
+	}
+	else {
+		printf("generate to allocate memory for playback (%zu bytes)\n", sizeof(recording_t));
+	}
+
+	memset(files, 0, sizeof(recording_t));
+
+	int i = 0;
+
+	if (argc != 2) {
+		char filename[] = "k4_2.mkv";
+		files[i].filename = filename;
+	}
+	else {
+		files[i].filename = argv[i + 1];
+	}
+	result = k4a_playback_open(files[i].filename, &files[i].handle);
+	if (result != K4A_RESULT_SUCCEEDED)
+	{
+		printf("Failed to open file: %s\n", files[i].filename);
+	}
+
+	result = k4a_playback_get_record_configuration(files[i].handle, &files[i].record_config);
+	if (result != K4A_RESULT_SUCCEEDED)
+	{
+		printf("Failed to get record configuration for file: %s\n", files[i].filename);
+	}
+
+	//if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER)
+
+
+	if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_STANDALONE)
+	{
+		printf("Opened standalone recording file: %s\n", files[i].filename);
+
+	}
+	else
+	{
+		printf("ERROR: Recording file was not recorded in Standalone mode: %s\n", files[i].filename);
+		result = K4A_RESULT_FAILED;
+	}
+
+	// Read the first capture of each recording into memory.
+	k4a_stream_result_t stream_result = k4a_playback_get_next_capture(files[i].handle, &files[i].capture);
+	if (stream_result == K4A_STREAM_RESULT_EOF)
+	{
+		printf("ERROR: Recording file is empty: %s\n", files[i].filename);
+		result = K4A_RESULT_FAILED;
+	}
+	else if (stream_result == K4A_STREAM_RESULT_FAILED)
+	{
+		printf("ERROR: Failed to read first capture from file: %s\n", files[i].filename);
+		result = K4A_RESULT_FAILED;
+	}
+
+	k4a_calibration_t calibration;
+
+	k4a_playback_get_calibration(files[i].handle, &calibration);
+
+
+	//if (K4A_RESULT_SUCCEEDED !=
+	//	k4a_device_get_calibration(device, config.depth_mode, config.color_resolution, &calibration))
+	//{
+	//	printf("Failed to get calibration\n");
+	//	goto Exit;
+	//}
+
+	if (result == K4A_RESULT_SUCCEEDED)
+	{
+		printf("%-32s  %12s  %12s  %12s\n", "Source file", "COLOR", "DEPTH", "IR");
+		printf("==========================================================================\n");
+
+		// Print the first 25 captures in order of timestamp across all the recordings.
+		for (int frame = 0; frame < 25; frame++)
+		{
+			uint64_t min_timestamp = (uint64_t)-1;
+			recording_t *min_file = NULL;
+
+			if (files[i].capture != NULL)
+			{
+				// All recording files start at timestamp 0, however the first timestamp off the camera is usually
+				// non-zero. We need to add the recording "start offset" back to the recording timestamp to recover
+				// the original timestamp from the device, and synchronize the files.
+				uint64_t timestamp = first_capture_timestamp(files[i].capture) +
+					files[i].record_config.start_timestamp_offset_usec;
+				if (timestamp < min_timestamp)
+				{
+					min_timestamp = timestamp;
+					min_file = &files[i];
+				}
+			}
+
+
+			print_capture_info(min_file, calibration,frame);
+
+			k4a_capture_release(min_file->capture);
+			min_file->capture = NULL;
+
+			// Advance the recording with the lowest current timestamp forward.
+			k4a_stream_result_t stream_result = k4a_playback_get_next_capture(min_file->handle, &min_file->capture);
+			if (stream_result == K4A_STREAM_RESULT_FAILED)
+			{
+				printf("ERROR: Failed to read next capture from file: %s\n", min_file->filename);
+				result = K4A_RESULT_FAILED;
+				break;
+			}
+		}
+	}
+
+	if (files[i].handle != NULL)
+	{
+		k4a_playback_close(files[i].handle);
+		files[i].handle = NULL;
+	}
+
+	free(files);
+	return result == K4A_RESULT_SUCCEEDED ? 0 : 1;
+}
+
+
+
 
 int main(int argc, char **argv) {
 	main1(argc, argv);
