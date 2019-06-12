@@ -1,0 +1,28 @@
+<!DOCTYPE FilterScript>
+<FilterScript>
+ <filter name="Transform: Scale, Normalize">
+  <Param name="axisX" type="RichFloat" tooltip="Scaling" value="0.001" description="X Axis"/>
+  <Param name="axisY" type="RichFloat" tooltip="Scaling" value="0.001" description="Y Axis"/>
+  <Param name="axisZ" type="RichFloat" tooltip="Scaling" value="0.001" description="Z Axis"/>
+  <Param name="uniformFlag" type="RichBool" tooltip="If selected an uniform scaling (the same for all the three axis) is applied (the X axis value is used)" value="true" description="Uniform Scaling"/>
+  <Param name="scaleCenter" enum_val1="barycenter" enum_cardinality="3" type="RichEnum" tooltip="Choose a method" value="0" description="Center of scaling:" enum_val0="origin" enum_val2="custom point"/>
+  <Param name="customCenter" type="RichPoint3f" tooltip="This scaling center is used only if the 'custom point' option is chosen." y="0" x="0" description="Custom center" z="0"/>
+  <Param name="unitFlag" type="RichBool" tooltip="If selected, the object is scaled to a box whose sides are at most 1 unit lenght" value="false" description="Scale to Unit bbox"/>
+  <Param name="Freeze" type="RichBool" tooltip="The transformation is explicitly applied, and the vertex coordinates are actually changed" value="true" description="Freeze Matrix"/>
+  <Param name="allLayers" type="RichBool" tooltip="If selected the filter will be applied to all visible mesh layers" value="false" description="Apply to all visible Layers"/>
+ </filter>
+ <filter name="Transform: Translate, Center, set Origin">
+  <Param name="traslMethod" enum_val1="Center on BBox" enum_cardinality="3" type="RichEnum" tooltip="[XYZ translation] adds X,Y and Z offset to Layer transformation, [Center on BBox] moves Layer Origin to the Bounding Box center, [Set new Origin] moves Layer Origin to a specific point" value="0" description="Transformation:" enum_val0="XYZ translation" enum_val2="Set new Origin"/>
+  <Param name="axisX" type="RichDynamicFloat" tooltip="when using [XYZ translation], amount of translation along the X axis (in model units)" value="0" min="-73026.9" description="X Axis" max="73026.9"/>
+  <Param name="axisY" type="RichDynamicFloat" tooltip="when using [XYZ translation], amount of translation along the Y axis (in model units)" value="0" min="-73026.9" description="Y Axis" max="73026.9"/>
+  <Param name="axisZ" type="RichDynamicFloat" tooltip="when using [XYZ translation], amount of translation along the Z axis (in model units)" value="0" min="-73026.9" description="Z Axis" max="73026.9"/>
+  <Param name="newOrigin" type="RichPoint3f" tooltip="when using [Set new Origin], this is the location of the new Origin." y="0" x="0" description="New Origin:" z="0"/>
+  <Param name="Freeze" type="RichBool" tooltip="The transformation is explicitly applied, and the vertex coordinates are actually changed" value="true" description="Freeze Matrix"/>
+  <Param name="allLayers" type="RichBool" tooltip="If selected the filter will be applied to all visible mesh layers" value="false" description="Apply to all visible Layers"/>
+ </filter>
+  <filter name="Vertex Color Noise">
+    <Param a="255" description="BaseColor" tooltip="The base color that is added to the mesh." type="RichColor" g="255" b="255" name="baseColor" r="0"/>
+    <Param description="Alpha" min="0" tooltip="The random color is blended with the current one with the specified alpha" type="RichDynamicFloat" max="1" name="percentage" value="1"/>
+    <Param description="Noisy Frequency" min="1" tooltip="The frequency of the Noise on the mesh. Higher numbers means smaller spots." type="RichDynamicFloat" max="200" name="frequency" value="30.85"/>
+  </filter>
+</FilterScript>

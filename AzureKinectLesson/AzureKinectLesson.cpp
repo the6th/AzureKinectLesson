@@ -150,7 +150,7 @@ static void write_point_cloud(const char *file_name, const k4a_image_t point_clo
 		}
 
 		ss << (float)point_cloud_data[i].xyz.x << " " << (float)point_cloud_data[i].xyz.y << " "
-			<< (float)point_cloud_data[i].xyz.z << " 253 253 253 255"<<std::endl;
+			<< (float)point_cloud_data[i].xyz.z << " 255 0 0 255" << std::endl;
 	}
 
 	std::ofstream ofs_text(file_name, std::ios::out | std::ios::app);
@@ -270,7 +270,7 @@ Exit:
 #pragma endregion
 
 
-static void print_capture_info(recording_t *file, k4a_calibration_t &calibration,int frame)
+static void print_capture_info(recording_t *file, k4a_calibration_t &calibration, int frame)
 {
 	k4a_image_t images[3];
 	images[0] = k4a_capture_get_color_image(file->capture);
@@ -307,7 +307,7 @@ static void print_capture_info(recording_t *file, k4a_calibration_t &calibration
 
 
 	std::stringstream ss;
-	ss << file->filename << frame << ".ply" ;
+	ss << "out/" << file->filename << frame << ".ply";
 	write_point_cloud(ss.str().c_str(), point_cloud, point_count);
 
 
@@ -427,7 +427,9 @@ int main1(int argc, char **argv)
 		printf("==========================================================================\n");
 
 		// Print the first 25 captures in order of timestamp across all the recordings.
-		for (int frame = 0; frame < 25; frame++)
+		int frame = 0;
+		while (true)
+			//for (int frame = 0; frame < 25; frame++)
 		{
 			uint64_t min_timestamp = (uint64_t)-1;
 			recording_t *min_file = NULL;
@@ -447,7 +449,7 @@ int main1(int argc, char **argv)
 			}
 
 
-			print_capture_info(min_file, calibration,frame);
+			print_capture_info(min_file, calibration, frame);
 
 			k4a_capture_release(min_file->capture);
 			min_file->capture = NULL;
@@ -460,6 +462,7 @@ int main1(int argc, char **argv)
 				result = K4A_RESULT_FAILED;
 				break;
 			}
+			frame++;
 		}
 	}
 
